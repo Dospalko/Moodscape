@@ -1,7 +1,8 @@
-// src/components/MoodForm.tsx
 import React from 'react';
 import { Input } from './ui/input';
-import { Button } from './ui/button';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+
 export interface MoodFormProps {
   mood: string;
   onMoodChange: (value: string) => void;
@@ -22,20 +23,22 @@ export const MoodForm: React.FC<MoodFormProps> = ({
 }) => {
   return (
     <div className="w-full">
-      <Input
+      <Textarea
         placeholder="Ako sa dnes cítiš?"
         value={mood}
         onChange={(e) => onMoodChange(e.target.value)}
-        className="mb-4"
+        className="mb-4 rounded-md shadow-sm"
+        rows={4}
       />
       <Button
         onClick={onSubmit}
         disabled={!mood || loading}
-        className="w-full"
+        className="w-full bg-primary text-primary-foreground hover:bg-primary/80 rounded-md shadow-sm"
       >
         {loading ? 'Generujem...' : 'Generuj playlist'}
       </Button>
-      {error && <p className="mt-2 text-red-600 text-sm">{error}</p>}
+      {error && <p className="mt-2 text-destructive text-sm">{error}</p>}
     </div>
   );
 };
+
