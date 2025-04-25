@@ -1,7 +1,7 @@
 // src/components/MoodForm.tsx
 import React from 'react';
-import { Input, Button } from './ui';
-
+import { Input } from './ui/input';
+import { Button } from './ui/button';
 export interface MoodFormProps {
   mood: string;
   onMoodChange: (value: string) => void;
