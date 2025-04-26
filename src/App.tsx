@@ -1,158 +1,131 @@
 // src/App.tsx
-import React, { useState, useCallback } from 'react';
-import { Input } from './components/ui/input';
-import { Button } from './components/ui/button';
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from './components/ui/card';
-import { ExplanationCard } from './components/ExplanationCard'; // Import the new component
-import { Loader2 } from 'lucide-react'; // Optional: for a nicer loading spinner
+import React, { useState, useCallback, useEffect } from 'react';
+import { Layout } from './components/Layout'; // Upravený Layout
+import { Header } from './components/Header'; // Upravený Header
+import { ExplanationCard } from './components/ExplanationCard'; // Upravená ExplanationCard
+import { MoodForm } from './components/MoodForm'; // Upravený MoodForm
+import { Playlist } from './components/Playlist'; // Upravený Playlist
+import { AnimatePresence, motion } from 'framer-motion'; // Pre animácie pri miznutí
 
+// Definujeme Track interface (môže byť aj v zdieľanom súbore types.ts)
 interface Track {
   name: string;
   artist: string;
   artworkUrl: string;
 }
 
-// Dummy playlist na zobrazenie
+// Dummy playlist - viac variácií
 const dummyPlaylist: Track[] = [
-  { name: 'Serenity Now', artist: 'Calm Collective', artworkUrl: 'https://picsum.photos/seed/calm/100/100' },
-  { name: 'Quietude', artist: 'Ambient Sphere', artworkUrl: 'https://picsum.photos/seed/peace/100/100' },
-  { name: 'Mindful Moment', artist: 'Zenith Beats', artworkUrl: 'https://picsum.photos/seed/zen/100/100' },
+    { name: 'Echoes of Tranquility', artist: 'Etherea', artworkUrl: 'https://picsum.photos/seed/echo/150/150' },
+    { name: 'Midnight Drive', artist: 'Synthwave Masters', artworkUrl: 'https://picsum.photos/seed/drive/150/150' },
+    { name: 'Forest Awakening', artist: 'Nature\'s Resonance', artworkUrl: 'https://picsum.photos/seed/forest/150/150' },
+    { name: 'City Lights Lullaby', artist: 'Urban Nocturnes', artworkUrl: 'https://picsum.photos/seed/city/150/150' },
+    { name: 'Celestial Voyage', artist: 'Cosmic Drifters', artworkUrl: 'https://picsum.photos/seed/space/150/150' },
 ];
 
-/**
- * Jednoduchá stub funkcia na analýzu nálady z textu.
- * Nahradíš ju neskôr volaním na AI flow alebo backend.
- */
-async function analyzeMoodFromText({
-  text,
-}: {
-  text: string;
-}): Promise<{ mood: string }> {
-  // Simulácia API volania
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  // zatiaľ len echo vstupu
-  return { mood: text.trim() || 'neutral' };
+// --- Stub Mood Analysis Function ---
+async function analyzeMoodFromText({ text }: { text: string }): Promise<{ mood: string }> {
+    await new Promise(resolve => setTimeout(resolve, 1500)); // Simulácia
+    const lowerText = text.toLowerCase();
+    if (lowerText.includes('happy') || lowerText.includes('joyful') || lowerText.includes('excited')) return { mood: 'Happy / Energetic' };
+    if (lowerText.includes('sad') || lowerText.includes('down') || lowerText.includes('gloomy')) return { mood: 'Sad / Reflective' };
+    if (lowerText.includes('calm') || lowerText.includes('relaxed') || lowerText.includes('peaceful')) return { mood: 'Calm / Relaxed' };
+    if (lowerText.includes('stressed') || lowerText.includes('anxious') || lowerText.includes('worried')) return { mood: 'Stressed / Anxious' };
+    if (lowerText.includes('angry') || lowerText.includes('frustrated')) return { mood: 'Angry / Intense' };
+    return { mood: text.trim() ? 'Neutral / Focused' : 'Unknown' };
 }
 
+// --- Main App Component ---
 export default function App() {
-  const [moodText, setMoodText] = useState<string>('');
-  const [analyzedMood, setAnalyzedMood] = useState<string>('');
-  const [playlist, setPlaylist] = useState<Track[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string>('');
+    const [moodText, setMoodText] = useState<string>('');
+    const [analyzedMood, setAnalyzedMood] = useState<string>('');
+    const [playlist, setPlaylist] = useState<Track[]>([]);
+    const [loading, setLoading] = useState<boolean>(false);
+    const [error, setError] = useState<string>('');
 
-  const handleAnalyzeMood = useCallback(async () => {
-    setError('');
-    setPlaylist([]); // Clear previous playlist
-    setAnalyzedMood(''); // Clear previous mood
-    setLoading(true);
-    try {
-      const { mood } = await analyzeMoodFromText({ text: moodText });
-      setAnalyzedMood(mood);
-      // pre demo: použijeme dummyPlaylist - maybe vary based on mood later?
-      setPlaylist(dummyPlaylist);
-    } catch (err) {
-      console.error('Chyba pri analyzovaní nálady:', err);
-      setError('Nepodarilo sa analyzovať náladu. Skúste to prosím znova.');
-    } finally {
-      setLoading(false);
-    }
-  }, [moodText]);
+    const handleAnalyzeMood = useCallback(async () => {
+        setError('');
+        setPlaylist([]); // Vymažeme starý playlist hneď
+        setAnalyzedMood('');
+        setLoading(true);
 
-  return (
-    // Applied gradient background and improved padding/layout
-    <div className="flex flex-col items-center justify-start min-h-screen py-16 px-4 bg-gradient-to-br from-purple-100 via-blue-100 to-teal-100 text-gray-800">
-      {/* Updated title styling */}
-      <h1 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600 mb-10 text-center">
-        MoodTunes – Music for Your Soul
-      </h1>
+        try {
+            const { mood } = await analyzeMoodFromText({ text: moodText });
+            setAnalyzedMood(mood);
+            setPlaylist(dummyPlaylist); // V reálnej appke fetch podľa mood
+        } catch (err) {
+            console.error('Chyba pri analyzovaní nálady:', err);
+            setError('Nepodarilo sa analyzovať náladu. Skúste to prosím znova.');
+        } finally {
+            setLoading(false);
+        }
+    }, [moodText]);
 
-      {/* Explanation Card Added */}
-      <ExplanationCard />
+    // Efekt na vyčistenie výsledkov, ak sa vymaže text
+    useEffect(() => {
+        if (!moodText.trim() && !loading) { // Pridaná podmienka !loading
+            setAnalyzedMood('');
+            setPlaylist([]);
+            setError('');
+        }
+    }, [moodText, loading]);
 
-      {/* Mood Input Card - Adjusted styling */}
-      <Card className="w-full max-w-md mb-8 shadow-lg bg-white/90 backdrop-blur-sm">
-        <CardHeader>
-          <CardTitle className="text-xl font-semibold">Enter Your Mood</CardTitle>
-          <CardDescription>Describe how you're feeling right now.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Input
-            type="text"
-            placeholder="e.g., feeling relaxed after a long day..."
-            value={moodText}
-            onChange={(e) => setMoodText(e.target.value)}
-            className="text-base" // Ensure readable text size
-            disabled={loading}
-          />
-          <Button
-            onClick={handleAnalyzeMood}
-            disabled={!moodText.trim() || loading}
-            className="w-full bg-gradient-to-r from-blue-500 to-teal-500 hover:from-blue-600 hover:to-teal-600 text-white font-semibold py-3 transition-all duration-300 ease-in-out disabled:opacity-60"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Analyzing...
-              </>
-            ) : (
-              'Generate Playlist' // Changed button text
-            )}
-          </Button>
-          {error && <p className="text-sm text-red-600 mt-2 text-center">{error}</p>}
-        </CardContent>
-      </Card>
+    return (
+        <Layout> {/* Použije upravený Layout pre pozadie a padding */}
+            <Header className="mb-10 sm:mb-16" /> {/* Pridaný väčší margin */}
 
-      {/* Analyzed Mood Display - Enhanced styling */}
-      {analyzedMood && !loading && (
-        <Card className="w-full max-w-md mb-8 shadow-md bg-white/90 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle className="text-lg font-medium">Detected Mood</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {/* Use a more prominent style for the mood */}
-            <p className="text-2xl font-semibold text-center text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600 py-2">
-              {analyzedMood}
-            </p>
-          </CardContent>
-        </Card>
-      )}
+             {/* Hlavný obsah s kontrolovanou šírkou */}
+            <main className="w-full flex flex-col items-center space-y-8 z-10">
 
-      {/* Playlist Display - Improved list item styling */}
-      {playlist.length > 0 && !loading && (
-        <Card className="w-full max-w-lg shadow-lg bg-white/90 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle className="text-xl font-semibold">Your Mood Playlist</CardTitle>
-            <CardDescription>Curated tracks based on your feeling.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-5">
-              {playlist.map((track, idx) => (
-                <li
-                  key={idx}
-                  className="flex items-center space-x-4 p-3 rounded-lg transition-colors duration-200 hover:bg-gray-100/50"
-                >
-                  <img
-                    src={`${track.artworkUrl}?${idx}`} // Add index to URL query to ensure different images from picsum seed
-                    alt={`${track.name} artwork`}
-                    className="w-16 h-16 rounded-md shadow-sm object-cover flex-shrink-0" // Added object-cover
-                  />
-                  <div className="flex-grow min-w-0"> {/* Added min-w-0 for text truncation if needed */}
-                    <p className="font-semibold text-lg truncate text-gray-800">{track.name}</p>
-                    <p className="text-sm text-gray-500 truncate">{track.artist}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  );
+                {/* Karta s vysvetlením - vždy viditeľná */}
+                <ExplanationCard className="mb-6" />
+
+                {/* Formulár pre náladu */}
+                <MoodForm
+                    mood={moodText}
+                    onMoodChange={setMoodText}
+                    onSubmit={handleAnalyzeMood}
+                    loading={loading}
+                    error={error}
+                    className="w-full" // MoodForm si sám nastaví max-w-2xl
+                />
+
+                 {/* Sekcia výsledkov - Analyzovaná nálada (ak existuje) */}
+                <AnimatePresence>
+                    {analyzedMood && !loading && (
+                        <motion.div
+                            key="analyzedMood" // Kľúč pre AnimatePresence
+                            className="w-full max-w-2xl text-center px-4 py-5 bg-white/5 border border-white/10 backdrop-blur-lg shadow-lg rounded-xl"
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.9 }}
+                            transition={{ duration: 0.4 }}
+                        >
+                            <p className="text-sm uppercase text-gray-400 tracking-wider mb-1">Detected Vibe</p>
+                            <p className="text-2xl sm:text-3xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-purple-300 via-pink-300 to-blue-300">
+                                {analyzedMood}
+                            </p>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                 {/* Playlist (ak existuje) */}
+                 <AnimatePresence>
+                    {playlist.length > 0 && !loading && (
+                        <Playlist
+                            key="playlist" // Kľúč pre AnimatePresence
+                            tracks={playlist}
+                            analyzedMood={analyzedMood}
+                            className="w-full" // Playlist si sám nastaví max-w-2xl
+                        />
+                    )}
+                </AnimatePresence>
+            </main>
+
+            {/* Pätička */}
+            <footer className="mt-auto pt-10 text-center text-gray-500 text-sm z-10">
+                MoodTunes © {new Date().getFullYear()} - Concept Demo
+            </footer>
+        </Layout>
+    );
 }
