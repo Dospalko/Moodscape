@@ -9,6 +9,8 @@ import {
   CardDescription,
   CardContent,
 } from './components/ui/card';
+import { ExplanationCard } from './components/ExplanationCard'; // Import the new component
+import { Loader2 } from 'lucide-react'; // Optional: for a nicer loading spinner
 
 interface Track {
   name: string;
@@ -18,9 +20,9 @@ interface Track {
 
 // Dummy playlist na zobrazenie
 const dummyPlaylist: Track[] = [
-  { name: 'Song 1', artist: 'Artist A', artworkUrl: 'https://picsum.photos/100/100' },
-  { name: 'Song 2', artist: 'Artist B', artworkUrl: 'https://picsum.photos/100/100' },
-  { name: 'Song 3', artist: 'Artist C', artworkUrl: 'https://picsum.photos/100/100' },
+  { name: 'Serenity Now', artist: 'Calm Collective', artworkUrl: 'https://picsum.photos/seed/calm/100/100' },
+  { name: 'Quietude', artist: 'Ambient Sphere', artworkUrl: 'https://picsum.photos/seed/peace/100/100' },
+  { name: 'Mindful Moment', artist: 'Zenith Beats', artworkUrl: 'https://picsum.photos/seed/zen/100/100' },
 ];
 
 /**
@@ -32,6 +34,8 @@ async function analyzeMoodFromText({
 }: {
   text: string;
 }): Promise<{ mood: string }> {
+  // Simulácia API volania
+  await new Promise(resolve => setTimeout(resolve, 1000));
   // zatiaľ len echo vstupu
   return { mood: text.trim() || 'neutral' };
 }
@@ -45,82 +49,103 @@ export default function App() {
 
   const handleAnalyzeMood = useCallback(async () => {
     setError('');
+    setPlaylist([]); // Clear previous playlist
+    setAnalyzedMood(''); // Clear previous mood
     setLoading(true);
     try {
       const { mood } = await analyzeMoodFromText({ text: moodText });
       setAnalyzedMood(mood);
-      // pre demo: použijeme dummyPlaylist
+      // pre demo: použijeme dummyPlaylist - maybe vary based on mood later?
       setPlaylist(dummyPlaylist);
     } catch (err) {
       console.error('Chyba pri analyzovaní nálady:', err);
-      setError('Nepodarilo sa analyzovať náladu.');
+      setError('Nepodarilo sa analyzovať náladu. Skúste to prosím znova.');
     } finally {
       setLoading(false);
     }
   }, [moodText]);
 
   return (
-    <div className="flex flex-col items-center justify-start min-h-screen py-24 px-4 bg-secondary">
-      <h1 className="text-4xl md:text-5xl font-bold text-primary mb-8">
+    // Applied gradient background and improved padding/layout
+    <div className="flex flex-col items-center justify-start min-h-screen py-16 px-4 bg-gradient-to-br from-purple-100 via-blue-100 to-teal-100 text-gray-800">
+      {/* Updated title styling */}
+      <h1 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600 mb-10 text-center">
         MoodTunes – Music for Your Soul
       </h1>
 
-      {/* Vstupná karta pre náladu */}
-      <Card className="w-full max-w-md mb-6">
+      {/* Explanation Card Added */}
+      <ExplanationCard />
+
+      {/* Mood Input Card - Adjusted styling */}
+      <Card className="w-full max-w-md mb-8 shadow-lg bg-white/90 backdrop-blur-sm">
         <CardHeader>
-          <CardTitle>Enter Your Mood</CardTitle>
-          <CardDescription>Describe how you're feeling.</CardDescription>
+          <CardTitle className="text-xl font-semibold">Enter Your Mood</CardTitle>
+          <CardDescription>Describe how you're feeling right now.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Input
             type="text"
-            placeholder="I'm feeling..."
+            placeholder="e.g., feeling relaxed after a long day..."
             value={moodText}
             onChange={(e) => setMoodText(e.target.value)}
+            className="text-base" // Ensure readable text size
+            disabled={loading}
           />
           <Button
             onClick={handleAnalyzeMood}
-            disabled={!moodText || loading}
-            className="w-full"
+            disabled={!moodText.trim() || loading}
+            className="w-full bg-gradient-to-r from-blue-500 to-teal-500 hover:from-blue-600 hover:to-teal-600 text-white font-semibold py-3 transition-all duration-300 ease-in-out disabled:opacity-60"
           >
-            {loading ? 'Analyzing...' : 'Analyze Mood'}
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Analyzing...
+              </>
+            ) : (
+              'Generate Playlist' // Changed button text
+            )}
           </Button>
-          {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
+          {error && <p className="text-sm text-red-600 mt-2 text-center">{error}</p>}
         </CardContent>
       </Card>
 
-      {/* Zobrazenie analyzovanej nálady */}
-      {analyzedMood && (
-        <Card className="w-full max-w-md mb-6">
+      {/* Analyzed Mood Display - Enhanced styling */}
+      {analyzedMood && !loading && (
+        <Card className="w-full max-w-md mb-8 shadow-md bg-white/90 backdrop-blur-sm">
           <CardHeader>
-            <CardTitle>Analyzed Mood</CardTitle>
-            <CardDescription>Based on your input.</CardDescription>
+            <CardTitle className="text-lg font-medium">Detected Mood</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-lg font-semibold text-teal-500">{analyzedMood}</p>
+            {/* Use a more prominent style for the mood */}
+            <p className="text-2xl font-semibold text-center text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600 py-2">
+              {analyzedMood}
+            </p>
           </CardContent>
         </Card>
       )}
 
-      {/* Zobrazenie playlistu */}
-      {playlist.length > 0 && (
-        <Card className="w-full max-w-lg">
+      {/* Playlist Display - Improved list item styling */}
+      {playlist.length > 0 && !loading && (
+        <Card className="w-full max-w-lg shadow-lg bg-white/90 backdrop-blur-sm">
           <CardHeader>
-            <CardTitle>Personalized Playlist</CardTitle>
-            <CardDescription>Curated for your current mood.</CardDescription>
+            <CardTitle className="text-xl font-semibold">Your Mood Playlist</CardTitle>
+            <CardDescription>Curated tracks based on your feeling.</CardDescription>
           </CardHeader>
           <CardContent>
-            <ul className="space-y-4">
+            <ul className="space-y-5">
               {playlist.map((track, idx) => (
-                <li key={idx} className="flex items-center space-x-4">
+                <li
+                  key={idx}
+                  className="flex items-center space-x-4 p-3 rounded-lg transition-colors duration-200 hover:bg-gray-100/50"
+                >
                   <img
-                    src={track.artworkUrl}
-                    alt={track.name}
-                    className="w-16 h-16 rounded-md shadow"
+                    src={`${track.artworkUrl}?${idx}`} // Add index to URL query to ensure different images from picsum seed
+                    alt={`${track.name} artwork`}
+                    className="w-16 h-16 rounded-md shadow-sm object-cover flex-shrink-0" // Added object-cover
                   />
-                  <div>
-                    <p className="font-semibold text-lg">{track.name}</p>
-                    <p className="text-muted-foreground">{track.artist}</p>
+                  <div className="flex-grow min-w-0"> {/* Added min-w-0 for text truncation if needed */}
+                    <p className="font-semibold text-lg truncate text-gray-800">{track.name}</p>
+                    <p className="text-sm text-gray-500 truncate">{track.artist}</p>
                   </div>
                 </li>
               ))}
