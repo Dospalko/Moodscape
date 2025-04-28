@@ -1,31 +1,29 @@
-// src/App.tsx
 import React, { useState, useCallback, useEffect } from 'react';
-import { Layout } from './components/Layout'; // Upravený Layout
-import { Header } from './components/Header'; // Upravený Header
-import { ExplanationCard } from './components/ExplanationCard'; // Upravená ExplanationCard
-import { MoodForm } from './components/MoodForm'; // Upravený MoodForm
-import { Playlist } from './components/Playlist'; // Upravený Playlist
-import { AnimatePresence, motion } from 'framer-motion'; // Pre animácie pri miznutí
+import { Layout } from './components/Layout';
+import { Header } from './components/Header';
+import { ExplanationCard } from './components/ExplanationCard';
+import { MoodForm } from './components/MoodForm';
+import { Playlist } from './components/Playlist';
+import { AnimatePresence, motion } from 'framer-motion';
 
-// Definujeme Track interface (môže byť aj v zdieľanom súbore types.ts)
 interface Track {
   name: string;
   artist: string;
   artworkUrl: string;
 }
 
-// Dummy playlist - viac variácií
 const dummyPlaylist: Track[] = [
     { name: 'Echoes of Tranquility', artist: 'Etherea', artworkUrl: 'https://picsum.photos/seed/echo/150/150' },
     { name: 'Midnight Drive', artist: 'Synthwave Masters', artworkUrl: 'https://picsum.photos/seed/drive/150/150' },
     { name: 'Forest Awakening', artist: 'Nature\'s Resonance', artworkUrl: 'https://picsum.photos/seed/forest/150/150' },
     { name: 'City Lights Lullaby', artist: 'Urban Nocturnes', artworkUrl: 'https://picsum.photos/seed/city/150/150' },
     { name: 'Celestial Voyage', artist: 'Cosmic Drifters', artworkUrl: 'https://picsum.photos/seed/space/150/150' },
+    { name: 'Sunrise Groove', artist: 'Solar Beats', artworkUrl: 'https://picsum.photos/seed/sun/150/150' },
+    { name: 'Rainy Day Blues', artist: 'Azure Moods', artworkUrl: 'https://picsum.photos/seed/rain/150/150' },
 ];
 
-// --- Stub Mood Analysis Function ---
 async function analyzeMoodFromText({ text }: { text: string }): Promise<{ mood: string }> {
-    await new Promise(resolve => setTimeout(resolve, 1500)); // Simulácia
+    await new Promise(resolve => setTimeout(resolve, 1500));
     const lowerText = text.toLowerCase();
     if (lowerText.includes('happy') || lowerText.includes('joyful') || lowerText.includes('excited')) return { mood: 'Happy / Energetic' };
     if (lowerText.includes('sad') || lowerText.includes('down') || lowerText.includes('gloomy')) return { mood: 'Sad / Reflective' };
@@ -35,97 +33,109 @@ async function analyzeMoodFromText({ text }: { text: string }): Promise<{ mood: 
     return { mood: text.trim() ? 'Neutral / Focused' : 'Unknown' };
 }
 
-// --- Main App Component ---
 export default function App() {
     const [moodText, setMoodText] = useState<string>('');
     const [analyzedMood, setAnalyzedMood] = useState<string>('');
     const [playlist, setPlaylist] = useState<Track[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string>('');
+    const [showResults, setShowResults] = useState<boolean>(false);
+
 
     const handleAnalyzeMood = useCallback(async () => {
         setError('');
-        setPlaylist([]); // Vymažeme starý playlist hneď
-        setAnalyzedMood('');
+        setShowResults(true); // Show the result area immediately (for loading state)
+        setPlaylist([]); // Clear previous playlist visual immediately
+        setAnalyzedMood(''); // Clear previous mood visual immediately
         setLoading(true);
 
         try {
             const { mood } = await analyzeMoodFromText({ text: moodText });
             setAnalyzedMood(mood);
-            setPlaylist(dummyPlaylist); // V reálnej appke fetch podľa mood
+            // Simulate dynamic playlist based on mood length for variety
+            const playlistSize = mood.length % 5 + 3; // 3 to 7 tracks
+            setPlaylist(dummyPlaylist.slice(0, playlistSize));
         } catch (err) {
-            console.error('Chyba pri analyzovaní nálady:', err);
-            setError('Nepodarilo sa analyzovať náladu. Skúste to prosím znova.');
+            console.error('Analysis error:', err);
+            setError('Could not analyze mood. Please try again.');
+            setShowResults(false); // Hide result area on error
         } finally {
             setLoading(false);
         }
     }, [moodText]);
 
-    // Efekt na vyčistenie výsledkov, ak sa vymaže text
     useEffect(() => {
-        if (!moodText.trim() && !loading) { // Pridaná podmienka !loading
-            setAnalyzedMood('');
-            setPlaylist([]);
-            setError('');
+        // Hide results if input is cleared and not loading
+        if (!moodText.trim() && !loading) {
+           setShowResults(false);
+            // Optionally small delay to allow animations
+             setTimeout(() => {
+               setAnalyzedMood('');
+               setPlaylist([]);
+               setError('');
+             }, 300);
         }
     }, [moodText, loading]);
 
     return (
-        <Layout> {/* Použije upravený Layout pre pozadie a padding */}
-            <Header className="mb-10 sm:mb-16" /> {/* Pridaný väčší margin */}
+        <Layout>
+            <Header />
 
-             {/* Hlavný obsah s kontrolovanou šírkou */}
-            <main className="w-full flex flex-col items-center space-y-8 z-10">
+            {/* Main content takes remaining height and uses flex */}
+            <main className="flex-grow flex flex-col lg:flex-row gap-6 sm:gap-8 p-4 sm:p-6 pb-6 sm:pb-10 w-full max-w-[1600px] mx-auto min-h-0 z-10"> {/* Added min-h-0 */}
 
-                {/* Karta s vysvetlením - vždy viditeľná */}
-                <ExplanationCard className="mb-6" />
+                 {/* Left Column (Input Area) */}
+                <div className="flex flex-col gap-4 sm:gap-6 w-full lg:w-2/5 xl:w-1/3 flex-shrink-0">
+                     <ExplanationCard />
+                     <MoodForm
+                        mood={moodText}
+                        onMoodChange={setMoodText}
+                        onSubmit={handleAnalyzeMood}
+                        loading={loading}
+                        error={error && !showResults ? error : ''} // Show form error only if results are hidden
+                    />
+                     {/* Spacer to push footer down if content is short */}
+                    <div className="flex-grow lg:hidden"></div>
+                </div>
 
-                {/* Formulár pre náladu */}
-                <MoodForm
-                    mood={moodText}
-                    onMoodChange={setMoodText}
-                    onSubmit={handleAnalyzeMood}
-                    loading={loading}
-                    error={error}
-                    className="w-full" // MoodForm si sám nastaví max-w-2xl
-                />
-
-                 {/* Sekcia výsledkov - Analyzovaná nálada (ak existuje) */}
-                <AnimatePresence>
-                    {analyzedMood && !loading && (
-                        <motion.div
-                            key="analyzedMood" // Kľúč pre AnimatePresence
-                            className="w-full max-w-2xl text-center px-4 py-5 bg-white/5 border border-white/10 backdrop-blur-lg shadow-lg rounded-xl"
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.9 }}
-                            transition={{ duration: 0.4 }}
-                        >
-                            <p className="text-sm uppercase text-gray-400 tracking-wider mb-1">Detected Vibe</p>
-                            <p className="text-2xl sm:text-3xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-purple-300 via-pink-300 to-blue-300">
-                                {analyzedMood}
-                            </p>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-
-                 {/* Playlist (ak existuje) */}
-                 <AnimatePresence>
-                    {playlist.length > 0 && !loading && (
-                        <Playlist
-                            key="playlist" // Kľúč pre AnimatePresence
-                            tracks={playlist}
-                            analyzedMood={analyzedMood}
-                            className="w-full" // Playlist si sám nastaví max-w-2xl
-                        />
-                    )}
-                </AnimatePresence>
+                 {/* Right Column (Output Area) */}
+                <div className="flex flex-col flex-grow min-w-0"> {/* Added min-w-0 */}
+                    <AnimatePresence>
+                         {showResults && (
+                             <motion.div
+                                className="flex flex-col flex-grow min-h-0" // Container for playlist, needs flex properties
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.5 }}
+                            >
+                                <Playlist
+                                    isLoading={loading}
+                                    tracks={playlist}
+                                    analyzedMood={analyzedMood}
+                                />
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                    {/* Placeholder if results are not shown */}
+                    {!showResults && !error && (
+                         <div className="flex-grow flex items-center justify-center text-center bg-black/10 border border-white/10 rounded-xl backdrop-blur-sm">
+                             <p className="text-gray-400 px-6">Your personalized playlist will appear here.</p>
+                         </div>
+                     )}
+                     {/* Show general error here if results area hidden due to error */}
+                     {error && !showResults && (
+                          <div className="flex-grow flex items-center justify-center text-center bg-red-900/20 border border-red-500/30 rounded-xl backdrop-blur-sm">
+                             <p className="text-red-400 px-6">{error}</p>
+                         </div>
+                     )}
+                </div>
             </main>
 
-            {/* Pätička */}
-            <footer className="mt-auto pt-10 text-center text-gray-500 text-sm z-10">
-                MoodTunes © {new Date().getFullYear()} - Concept Demo
-            </footer>
+            {/* Footer is outside main, Layout handles positioning */}
+            {/* <footer className="py-3 text-center text-gray-500 text-xs z-10 flex-shrink-0">
+                 MoodTunes © {new Date().getFullYear()}
+            </footer> */}
         </Layout>
     );
 }
