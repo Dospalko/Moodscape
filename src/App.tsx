@@ -153,7 +153,7 @@ export default function App() {
                                 {/* Pre správne zobrazenie skeleton loadera by si mal do Playlist pridať `isLoading` prop */}
                                 <Playlist
                                      // Príklad pridania isLoading (musíš implementovať v Playlist.tsx)
-                                     // isLoading={loading && playlist.length === 0}
+                                     isLoading={loading && playlist.length === 0}
                                      tracks={playlist}
                                      analyzedMood={analyzedMood}
                                      // Predanie className pre prípadnú úpravu štýlu z App
