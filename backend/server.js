@@ -2,28 +2,22 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-// Axios už nepotrebujeme pre tento prístup
-// const axios = require('axios');
 const { OpenAI } = require('openai');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// --- Kontrola Environment Premenných ---
 if (!process.env.OPENAI_API_KEY) {
     console.error("FATAL ERROR: Missing OPENAI_API_KEY in .env file.");
     process.exit(1);
 }
 
-// --- OpenAI Klient ---
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 console.log("OpenAI client initialized.");
 
-// --- Middleware ---
 app.use(cors());
 app.use(express.json());
 
-// --- API Endpoint (Stále /api/generate-playlist) ---
 app.post('/api/generate-playlist', async (req, res) => {
     const { text } = req.body;
 
@@ -33,34 +27,49 @@ app.post('/api/generate-playlist', async (req, res) => {
     console.log(`Backend received text: "${text}"`);
 
     try {
-        // --- JEDNO VOLANIE OpenAI pre náladu aj playlist ---
         console.log("Calling OpenAI for mood analysis and playlist suggestion...");
+
+        // --- **** START OF PROMPT MODIFICATION **** ---
+        const systemPrompt = `You are an expert music curator and mood analysis AI. Your goal is to generate personalized song suggestions based on user input.
+Follow these steps carefully:
+1. Analyze the user's text to deeply understand their current feeling, considering nuance and intensity.
+2. Identify the single DOMINANT mood. Choose ONLY ONE from this specific list: Happy, Sad, Calm, Energetic, Angry, Anxious, Reflective, Neutral. Capitalize the chosen mood name.
+3. Curate a list of exactly 7 distinct, REAL, and reasonably well-known songs (provide the primary artist for each). The songs MUST strongly match the identified dominant mood in terms of vibe, tempo, energy, and common lyrical themes associated with that mood.
+4. Strive for some VARIETY within the playlist (e.g., avoid multiple songs from the exact same artist if possible, mix sub-genres slightly if appropriate for the mood). Ensure all suggestions are actual, verifiable songs. DO NOT invent songs or artists.
+5. Format your response STRICTLY as a single, valid JSON object. Do NOT include any introductory text, explanations, apologies, markdown formatting, or anything outside the JSON structure.
+
+The JSON object MUST contain exactly two top-level keys:
+- "mood": A string containing only the single identified dominant mood (e.g., "Happy", "Calm").
+- "playlist": An array containing exactly 7 song objects. Each song object in the array MUST have exactly two string keys: "name" (the exact song title) and "artist" (the main artist's name).
+
+Example of the REQUIRED JSON output format:
+{"mood": "Reflective", "playlist": [{"name": "Hallelujah", "artist": "Leonard Cohen"}, {"name": "Yesterday", "artist": "The Beatles"}, {"name": "Mad World", "artist": "Gary Jules"}, {"name": "Hurt", "artist": "Johnny Cash"}, {"name": "Fix You", "artist": "Coldplay"}, {"name": "Sound of Silence", "artist": "Simon & Garfunkel"}, {"name": "Everybody Hurts", "artist": "R.E.M."}]}`;
+        // --- **** END OF PROMPT MODIFICATION **** ---
+
+
         const completion = await openai.chat.completions.create({
-            model: "gpt-3.5-turbo-1106", // Modely končiace na 1106 a novšie podporujú JSON mód lepšie
-            // model: "gpt-4-turbo-preview", // Ešte lepší pre JSON mód
-            response_format: { type: "json_object" }, // Požadujeme JSON výstup!
+            model: "gpt-3.5-turbo-1106", // Good model for JSON mode
+            // model: "gpt-4-turbo-preview", // Potentially even better results
+            response_format: { type: "json_object" }, // Request JSON output
             messages: [
                 {
                     role: "system",
-                    // Dôkladný prompt pre požadovaný JSON výstup
-                    content: `Analyze the user's mood from the provided text. Identify the dominant mood (one of: Happy, Sad, Calm, Energetic, Angry, Anxious, Reflective, Neutral). Then, suggest a list of 7 real songs (with artists) that fit this mood. Respond ONLY with a valid JSON object containing two keys: "mood" (string with the detected mood, capitalized) and "playlist" (an array of objects, where each object has "name" and "artist" string keys). Example format: {"mood": "Happy", "playlist": [{"name": "Good Vibrations", "artist": "The Beach Boys"}, {"name": "Walking on Sunshine", "artist": "Katrina & The Waves"}, ...]}`
+                    content: systemPrompt // Use the refined prompt
                 },
                 {
                     role: "user",
                     content: text
                 }
             ],
-            temperature: 0.6, // Mierne kreatívny, ale stále sa snaží držať reality
-            max_tokens: 700, // Dostatočný priestor pre JSON s playlistom
+            temperature: 0.6, // Keep some creativity but focus on relevance
+            max_tokens: 800,  // Slightly increased just in case of longer names
             n: 1,
         });
 
-        // Získanie a parsovanie JSON odpovede
         const jsonResponseString = completion.choices[0]?.message?.content;
         if (!jsonResponseString) {
             throw new Error("OpenAI returned an empty response.");
         }
-
         console.log("Raw JSON response from OpenAI:", jsonResponseString);
 
         let parsedData;
@@ -68,48 +77,52 @@ app.post('/api/generate-playlist', async (req, res) => {
             parsedData = JSON.parse(jsonResponseString);
         } catch (parseError) {
             console.error("Failed to parse JSON response from OpenAI:", parseError);
-            console.error("Invalid JSON string:", jsonResponseString);
+            console.error("Invalid JSON string received:", jsonResponseString);
             throw new Error("OpenAI returned invalid JSON format.");
         }
 
-        // Validácia štruktúry
         if (!parsedData || typeof parsedData.mood !== 'string' || !Array.isArray(parsedData.playlist)) {
              console.error("Parsed JSON data is missing required keys or has incorrect types:", parsedData);
-            throw new Error("OpenAI JSON response is missing 'mood' or 'playlist' data.");
+            throw new Error("OpenAI JSON response structure is incorrect.");
         }
+         // Optional: Further validate the number of tracks and keys within track objects if needed
+         if (parsedData.playlist.length !== 7 || parsedData.playlist.some(track => !track.name || !track.artist)) {
+            console.warn("Parsed JSON playlist data might be incomplete or have incorrect length.");
+            // Decide how to handle: throw error, try to fix, or proceed with caution?
+            // For now, we proceed, but this indicates potential prompt/model issues.
+         }
 
-        const analyzedMood = parsedData.mood || 'Neutral'; // Použi náladu z JSONu
-        const suggestedPlaylist = parsedData.playlist;
 
-        // --- Pridanie ZÁSTUPNÝCH obrázkov ---
-        // OpenAI nevie vrátiť obrázky, tak použijeme Picsum pre variabilitu
+        const analyzedMood = parsedData.mood || 'Neutral';
+        // Filter out potentially empty track objects just in case
+        const suggestedPlaylist = parsedData.playlist.filter(track => track && track.name && track.artist);
+
         const placeholderBaseUrl = 'https://picsum.photos/seed/';
         const finalPlaylist = suggestedPlaylist.map((track, index) => ({
-            name: track.name || "Unknown Track",
-            artist: track.artist || "Unknown Artist",
-            // Vytvoríme unikátny seed pre každý track, aby obrázky boli rôzne
-            artworkUrl: `${placeholderBaseUrl}${encodeURIComponent(track.name || `track${index}`)}/150/150`
+            name: track.name,
+            artist: track.artist,
+            artworkUrl: `${placeholderBaseUrl}${encodeURIComponent(track.name)}/${index + 1}/150/150` // Add index variation to seed
         }));
 
-        console.log(`Generated playlist with ${finalPlaylist.length} tracks (using OpenAI suggestions).`);
+        console.log(`Generated playlist with ${finalPlaylist.length} tracks.`);
 
-        // Vráť náladu a vygenerovaný playlist (s placeholder obrázkami)
         res.json({
             mood: analyzedMood,
             playlist: finalPlaylist
         });
 
     } catch (error) {
-        console.error('Error during OpenAI processing:', error.response ? JSON.stringify(error.response.data, null, 2) : error.message);
+        console.error('Error during OpenAI processing:', error.message);
          if (error instanceof OpenAI.APIError) {
-              res.status(error.status || 500).json({ error: `OpenAI API Error: ${error.message}` });
+              console.error(`OpenAI API Error Details: Status ${error.status}, Type ${error.type}, Code ${error.code}`);
+              res.status(error.status || 500).json({ error: `OpenAI Service Error: ${error.message}` });
          } else {
-             res.status(500).json({ error: `Failed to generate playlist. ${error.message || ''}`.trim() });
+             // Send back the specific error message thrown by our logic (e.g., parsing/validation errors)
+             res.status(500).json({ error: error.message || 'Failed to generate playlist due to an internal error.' });
          }
     }
 });
 
-// --- Start Server ---
 app.listen(PORT, () => {
     console.log(`Backend server running at http://localhost:${PORT}`);
     console.log('Ready to generate playlist via /api/generate-playlist using OpenAI only.');
